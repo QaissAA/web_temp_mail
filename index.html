@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Temporary Email Service</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f9;
+            color: #333;
+        }
+        header {
+            background-color: #4CAF50;
+            color: white;
+            padding: 1rem;
+            text-align: center;
+        }
+        .container {
+            max-width: 900px;
+            margin: 2rem auto;
+            padding: 1rem;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .email-section {
+            margin-bottom: 2rem;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .email-list {
+            list-style: none;
+            padding: 0;
+        }
+        .email-list li {
+            margin: 0.5rem 0;
+            padding: 1rem;
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        input, textarea {
+            width: 100%;
+            margin: 5px 0;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Temporary Email Service</h1>
+    </header>
+    <div class="container">
+        <!-- Генерация временного email -->
+        <div class="email-section">
+            <h2>Your Temporary Email</h2>
+            <div id="email-display">Click the button to generate a temporary email.</div>
+            <button onclick="generateEmail()">Generate Email</button>
+        </div>
+
+        <!-- Отправка письма -->
+        <div class="email-section">
+            <h2>Send Email</h2>
+            <input type="text" id="email-sender" placeholder="Sender Email">
+            <input type="text" id="email-subject" placeholder="Subject">
+            <textarea id="email-body" placeholder="Message Body"></textarea>
+            <button onclick="sendEmail()">Send Email</button>
+        </div>
+
+        <!-- Получение писем -->
+        <div class="email-section">
+            <h2>Received Emails</h2>
+            <button onclick="fetchEmails()">Refresh Emails</button>
+            <ul class="email-list" id="email-list">
+                <li>No emails yet. Generate an email and wait for messages!</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000';
+        let currentEmail = '';
+        let fetchInterval = null;
+
+        // Генерация временного email
+        async function generateEmail() {
+            try {
+                const response = await fetch(`${API_BASE}/generate-email/`, { method: 'POST' });
+                if (!response.ok) throw new Error('Failed to generate email');
+                const data = await response.json();
+                currentEmail = data.temp_email;
+                document.getElementById('email-display').textContent = `Your temporary email: ${currentEmail}`;
+                
+                if (fetchInterval) clearInterval(fetchInterval);
+                fetchInterval = setInterval(fetchEmails, 10000);
+    
+                fetchEmails();
+            } catch (error) {
+                console.error('Error generating email:', error);
+            }
+        }
+    
+        // Получение писем
+        async function fetchEmails() {
+            if (!currentEmail) return;
+            try {
+                const response = await fetch(`${API_BASE}/emails/${currentEmail}`);
+                if (!response.ok) throw new Error('Failed to fetch emails');
+                const emails = await response.json();
+                const emailList = document.getElementById('email-list');
+                emailList.innerHTML = emails.length
+                    ? emails.map(email => `
+                        <li>
+                            <strong>From:</strong> ${email.sender}<br>
+                            <strong>Subject:</strong> ${email.subject}<br>
+                            <p>${email.body}</p>
+                        </li>`).join('')
+                    : '<li>No emails yet. Please wait.</li>';
+            } catch (error) {
+                console.error('Error fetching emails:', error);
+            }
+        }
+
+        // Отправка письма
+        async function sendEmail() {
+            if (!currentEmail) {
+                alert("Generate an email first!");
+                return;
+            }
+
+            const sender = document.getElementById("email-sender").value;
+            const subject = document.getElementById("email-subject").value;
+            const body = document.getElementById("email-body").value;
+            
+            if (!sender || !subject || !body) {
+                alert("Please fill in all fields.");
+                return;
+            }
+
+            const emailData = {
+                sender: sender,
+                subject: subject,
+                body: body,
+                received_at: new Date().toISOString()
+            };
+
+            try {
+                const response = await fetch(`${API_BASE}/receive-email/${currentEmail}`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(emailData)
+                });
+
+                if (!response.ok) throw new Error("Failed to send email");
+
+                alert("Email sent successfully!");
+                fetchEmails(); // Обновляем список писем
+            } catch (error) {
+                console.error("Error sending email:", error);
+            }
+        }
+    </script>
+</body>
+</html>
