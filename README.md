@@ -53,7 +53,7 @@ Node.js (Optional for frontend development)
 Clone the Repository:
 
 git clone https://github.com/QaissAA/web_temp_mail
-cd temp-email-service
+cd web_temp_mail
 
 Backend Setup:
 
